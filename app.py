@@ -1,6 +1,7 @@
-# ========== 编码修复 ==========
 import os
 import sys
+from dotenv import load_dotenv
+load_dotenv()
 
 os.environ["PYTHONIOENCODING"] = "utf-8"
 os.environ["PYTHONLEGACYWINDOWSSTDIO"] = "utf-8"
@@ -30,20 +31,17 @@ st.set_page_config(page_title="AI 调研助手", page_icon="🤖")
 st.title("🤖 AI 调研报告生成器")
 st.caption("输入任意主题，Agent 自动搜索并生成结构化报告，支持追问")
 
-
 # ========== 初始化客户端 ==========
 @st.cache_resource
 def load_clients():
-    tavily = TavilyClient(api_key="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")
+    tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
     deepseek = OpenAI(
-        api_key="sk-69392588f23b491081d42b6a98f8326f",
+        api_key=os.getenv("DEEPSEEK_API_KEY"),
         base_url="https://api.deepseek.com/v1"
     )
     return tavily, deepseek
 
-
 tavily_client, deepseek_client = load_clients()
-
 
 # ========== Agent 核心逻辑 ==========
 def run_agent(user_input, history, thought_container):
@@ -66,8 +64,8 @@ def run_agent(user_input, history, thought_container):
 
     messages = [
         {"role": "system", "content": """你是一个专业调研助手。
- 第一次调研时生成包含概述、最新动态、主要观点、总结四个部分的中文报告。
- 追问时根据对话历史和必要的搜索来回答用户问题。"""}
+第一次调研时生成包含概述、最新动态、主要观点、总结四个部分的中文报告。
+追问时根据对话历史和必要的搜索来回答用户问题。"""}
     ]
 
     for msg in history:
@@ -133,33 +131,32 @@ def run_agent(user_input, history, thought_container):
 
     return "未能生成完整回答，请重试。"
 
-
 # ========== 提取图表数据 ==========
 def extract_chart_data(report):
     prompt = f"""从以下调研报告中提取可以可视化的数据，返回 JSON 格式。
- 要求：
- 1. 提取2-3组数据，每组包含名称和数值
- 2. 数值必须是数字（可以是估算值）
- 3. 只返回 JSON，不要其他文字
+要求：
+1. 提取2-3组数据，每组包含名称和数值
+2. 数值必须是数字（可以是估算值）
+3. 只返回 JSON，不要其他文字
 
- 格式：
- {{
-   "charts": [
-     {{
-       "title": "图表标题",
-       "type": "pie",
-       "data": [{{"label": "名称", "value": 数字}}, ...]
-     }},
-     {{
-       "title": "图表标题",
-       "type": "bar",
-       "data": [{{"label": "名称", "value": 数字}}, ...]
-     }}
-   ]
- }}
+格式：
+{{
+  "charts": [
+    {{
+      "title": "图表标题",
+      "type": "pie",
+      "data": [{{"label": "名称", "value": 数字}}, ...]
+    }},
+    {{
+      "title": "图表标题",
+      "type": "bar",
+      "data": [{{"label": "名称", "value": 数字}}, ...]
+    }}
+  ]
+}}
 
- 报告内容：
- {report}"""
+报告内容：
+{report}"""
 
     response = deepseek_client.chat.completions.create(
         model="deepseek-chat",
@@ -171,7 +168,6 @@ def extract_chart_data(report):
     text = text.replace("```json", "").replace("```", "").strip()
     return json.loads(text)
 
-
 def render_charts(chart_data):
     for chart in chart_data.get("charts", []):
         df = pd.DataFrame(chart["data"])
@@ -180,7 +176,6 @@ def render_charts(chart_data):
         else:
             fig = px.bar(df, x="label", y="value", title=chart["title"])
         st.plotly_chart(fig, use_container_width=True)
-
 
 # ========== 导出 Word ==========
 def export_word(topic, report):
@@ -198,14 +193,12 @@ def export_word(topic, report):
     buf.seek(0)
     return buf
 
-
 # ========== 导出 PDF ==========
 def export_pdf(topic, report):
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     width, height = A4
 
-    # 尝试注册中文字体
     font_paths = [
         "C:/Windows/Fonts/simhei.ttf",
         "C:/Windows/Fonts/msyh.ttc",
@@ -240,7 +233,6 @@ def export_pdf(topic, report):
     c.save()
     buf.seek(0)
     return buf
-
 
 # ========== Session 初始化 ==========
 if "chat_history" not in st.session_state:
@@ -311,7 +303,6 @@ if user_input:
             )
         st.markdown(result)
 
-        # 第一次调研生成图表并保存报告
         if len(st.session_state.chat_history) == 1:
             st.session_state.first_report = result
             st.session_state.first_topic = user_input
