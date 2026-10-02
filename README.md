@@ -1,4 +1,4 @@
-# 🤖 AI 调研报告智能体
+# 🤖ResearchPilot--- AI 调研报告助手
 
 一个基于 **DeepSeek、Tavily 和 Streamlit** 构建的 AI 调研报告智能体。用户输入研究问题后，系统可以搜索互联网资料、整合多来源信息并生成结构化调研报告，同时支持来源追踪、Citation 校验、多轮追问、数据可视化，以及 Word / PDF 导出。
 
